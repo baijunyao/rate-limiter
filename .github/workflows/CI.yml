@@ -1,0 +1,69 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  markdown_lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Run markdownlint
+        uses: docker://avtodev/markdown-lint:v1
+        with:
+          args: './README.md'
+
+  phpcs:
+    name: PHPCS
+    runs-on: ubuntu-latest
+    container:
+      image: baijunyao/php:8.3-cli-local
+      volumes:
+        - /__w/rate-limiter/rate-limiter:/app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: |
+          echo "::set-output name=dir::$(composer config cache-files-dir)"
+      - uses: actions/cache@v1
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+      - name: Initial
+        run: |
+          composer install
+      - name: PHP CS Fixer
+        run: |
+          ./vendor/bin/php-cs-fixer fix --verbose --show-progress=dots --dry-run --diff
+
+  phpunit:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+    container:
+      image: baijunyao/php:8.3-cli-local
+      volumes:
+        - /__w/rate-limiter/rate-limiter:/app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: |
+          echo "::set-output name=dir::$(composer config cache-files-dir)"
+      - uses: actions/cache@v1
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+      - name: Initial
+        run: |
+          composer install
+      - name: Test
+        run: |
+          composer test
